@@ -1,58 +1,54 @@
-# Cancer research paper chatbot
+# Cancer Research Chatbot
+This is a chatbot for exploring cancer research literature. It can search PubMed, query a local dataset of cancer abstracts, and find recent news on cancer research topics.
 
-This is a chatbot to ask questions about recent research in cancer research. The dataset is based on the abstracts of research papers mentioning cancer from 2024 - 2026. 
-
-The user interface of the chatbot is implemented using Gradio. The tone of the chatbot is academic and concise.
+The user interface is built with Gradio. The chatbot's tone is academic and concise.
 
 ## How to run the app
-```bash
-# generate vector from text csv file
-cd 05_src/assignment_chat
-python3 embed_abstracts.py --csv data/cancer_abstracts.csv
 
-# run the app
+```bash
+# build the vector store from the cancer abstracts csv
+cd 05_src/assignment_chat
+python embed_abstracts.py --csv data/cancer_abstracts.csv
+
+# launch the app
 python app.py
 ```
-The environment variables (e.g., API_GATEWAY_KEY) and software dependencies are the same with the basic course setup.
 
+Environment variables (e.g., `API_GATEWAY_KEY`) and dependencies are the same as the standard course setup.
 
 ## Dataset for semantic query
-The dataset used to build this chatbox is from this public dataset of biomedical research abstracts on [Kaggle](https://www.kaggle.com/datasets/kanchana1990/biomedical-research-abstracts-20242026). I used a subset of the dataset to specifically focus on cancer research. The final dataset `cancer_abstracts` has 13122 entries.
 
->This `biomedical_research_abstracts` dataset contains 126,832 cleaned biomedical research abstracts sourced from the NCBI PubMed database, covering publications from January 2024 to March 2026.
+The dataset is a subset of the [Biomedical Research Abstracts 2024–2026](https://www.kaggle.com/datasets/kanchana1990/biomedical-research-abstracts-20242026) dataset on Kaggle, filtered to abstracts mentioning cancer. The final dataset has 13,122 entries.
 
-```
+```bash
 grep 'cancer' biomedical_research_abstracts_2024_2026.csv > cancer_abstracts.csv
+```
 
+Embeddings were generated using `sentence-transformers/all-MiniLM-L6-v2` via ChromaDB's built-in embedding function using `chromadb.PersistentClient`. The embedding is implented in `embed_abstracts.py` and embedding vectors are then stored at `./chroma_db/`
+
+```bash
+python embed_abstracts.py --csv path/to/cancer_abstracts.csv
 ```
 
 ## Services
 
+### Service 1: PubMed API
 
-### Service 1: Pubmed API
+Implemented in `services/pubmed.py`.
 
-Access to the Pubmed API is implemented in `services/pubmed.py`.
+PubMed is a free public database of biomedical research papers. The service provides two functions: `search_pubmed()` searches for papers by keyword and returns a formatted list of results (title, authors, journal, PMID), and `fetch_pubmed_abstract()` retrieves the full abstract for a specific PMID. 
 
-Pubmed is a public database for research papers in biology and bio-medicine. Users can search paper abstracts using keywords, and the chatbot will return a markdown formatted answer about the details of the paper like titles, authors, etc.
+### Service 2: Semantic Search
 
+Implemented in `services/semantic_search.py`.
 
-### Service 2: semantic query
+Abstracts are embedded with `all-MiniLM-L6-v2` and stored in a persistent ChromaDB collection. At query time, the user's question is embedded with the same model and matched against the collection using cosine similarity. 
 
-Text embedding generation is implented in `embed_abstracts.py`:
-```bash
-python embed_abstracts.py --csv path/to/cancer_abstracts.csv
-```
-Embedding vectors are then stored at `./chroma_db/`
+### Service 3: Web Search
 
-The semantic search service is implemented in `services/semantic_search.py`. 
+Implemented in `services/web_search.py`.
 
-
-### Service 3: web search
-
-Web search using openAI's web_search tool is implemented in `services/web_search.py`.
-
-Web search topics are limited to cancer research related topics.
-
+Uses OpenAI's built-in `web_search_preview` tool to find recent cancer research news. A single non-agentic search call is made.
 
 ## Other considerations
 
@@ -62,5 +58,10 @@ Implemented in `guardrails.py`.
 
 Guardrails are included to prevent users from accessing/revealing the system prompt, modifying the system prompt directly, or respond to questions on certain restricted topics listed in the assignment requirement (e.g.,Cats or dogs, Horoscopes or Zodiac Signs, Taylor Swift).
 
+### Memory
 
+Conversation history is stored as a list of `{"role", "content"}` dicts in Gradio and passed to `run_agent()` on each turn.
 
+## Future improvement
+
+Need to write more test cases to run.
